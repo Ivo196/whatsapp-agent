@@ -23,8 +23,9 @@ const chatFlow = addKeyword<Provider, Database>(EVENTS.ACTION)
                 return endFlow('See you later :)')
             }
             const prompt = ctx.body.trim()
+            const conversationId = ctx.key.remoteJid
             try {
-                const data = await getN8nData(prompt)
+                const data = await getN8nData(prompt,conversationId)
                 await flowDynamic(data)
             } catch (error){
                 return endFlow('Sorry something went wrong')
