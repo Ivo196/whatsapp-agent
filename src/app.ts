@@ -1,29 +1,42 @@
 import { join } from 'path'
-import { createBot, createProvider, createFlow, addKeyword, utils } from '@builderbot/bot'
+import { createBot, createProvider, createFlow, addAnswer, addKeyword, utils, EVENTS } from '@builderbot/bot'
 import { MemoryDB as Database } from '@builderbot/bot'
 import { BaileysProvider as Provider } from '@builderbot/provider-baileys'
+import { getN8nData} from './api/n8n'
 
 const PORT = process.env.PORT ?? 3008
 
 
-const welcomeFlow = addKeyword<Provider, Database>(['Agent'])
-    .addAnswer(`🙌 Hello welcome to this *Chatbot Agent*`)
-    .addAnswer(
-        [
-            'I am a chatbot agent that can help you with your questions and concerns. How can I help you today?',
-        ],
-        { delay: 800, capture: true },
-        async (ctx, { fallBack }) => {
-            if (!ctx.body.toLocaleLowerCase().includes('doc')) {
-                return fallBack('You should type *doc*')
-            }
-            return
-        },
-       
+const welcomeFlow = addKeyword<Provider, Database>(['n8n'])
+    .addAnswer('Hello welcome to this *Chatbot Agent*')
+    .addAction(
+        async (ctx, { gotoFlow }) => {
+                return gotoFlow(chatFlow)
+            },
+        
     )
+const chatFlow = addKeyword<Provider, Database>(EVENTS.ACTION)
+    .addAction(
+        { capture: true },
+        async (ctx, { flowDynamic, gotoFlow, endFlow}) => {
+            if(ctx.body.trim() === 'exit'){
+                return endFlow('See you later :)')
+            }
+            const prompt = ctx.body.trim()
+            try {
+                const data = await getN8nData(prompt)
+                await flowDynamic(data)
+            } catch (error){
+                return endFlow('Sorry something went wrong')
+            }
+            return gotoFlow(chatFlow) 
+    }
+)
+
+
 
 const main = async () => {
-    const adapterFlow = createFlow([welcomeFlow ])
+    const adapterFlow = createFlow([welcomeFlow,chatFlow])
     
     const adapterProvider = createProvider(Provider)
     const adapterDB = new Database()
